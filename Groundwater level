@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groundwater Level Prediction</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Style for the login box */
+        #login-page {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: url('background-image.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .login-box {
+            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white background */
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: 300px;
+        }
+
+        .login-box h1 {
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .login-box button:hover {
+            background-color: #45a049;
+        }
+
+        /* Container for map and info */
+        .main-content {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            margin-top: 20px;
+        }
+
+        /* Style for the map */
+        #map {
+            width: 500px;
+            height: 500px;
+            margin-right: 20px; /* Space between map and info */
+            border: 1px solid #ccc;
+        }
+
+        /* Info section on the right side */
+        #info {
+            max-width: 300px;
+        }
+
+        #info h3 {
+            margin-bottom: 10px;
+        }
+
+        #info p {
+            margin: 5px 0;
+        }
+
+        /* Animation for predicted groundwater and weather */
+        .info-box {
+            opacity: 0;
+            transform: translateY(50px); /* Start slightly below the original position */
+            transition: all 0.5s ease-out; /* Fade in and slide up animation */
+        }
+
+        .info-box.show {
+            opacity: 1;
+            transform: translateY(0); /* Final position */
+        }
+
+        /* Style for the prediction button */
+        #predictBtn {
+            padding: 10px 20px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #predictBtn:hover {
+            background-color: #007bb5;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Login Page -->
+    <div id="login-page">
+        <div class="login-box">
+            <h1>Login</h1>
+            <form id="loginForm">
+                <input type="text" id="username" placeholder="Username" required><br>
+                <input type="password" id="password" placeholder="Password" required><br>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Home Page -->
+    <div id="home-page" class="container" style="display: none;">
+        <!-- Navbar -->
+        <nav class="navbar">
+            <ul>
+                <li><a href="#" id="home-link">Home</a></li>
+                <li><a href="#">Contact Us</a></li>
+            </ul>
+        </nav>
+
+        <h1 style="text-align: center;">Groundwater Level Prediction</h1>
+
+        <div class="main-content">
+            <!-- Map Section -->
+            <div id="map"></div>
+
+            <!-- Info Section -->
+            <div id="info">
+                <p><strong>Selected Location:</strong> <span id="coordinates">Click on the map to select a location</span></p>
+                <div id="weather" class="info-box"></div> <!-- Weather section with animation -->
+                <button id="predictBtn">Predict Groundwater Level</button>
+                <p id="prediction" class="info-box"></p> <!-- Prediction section with animation -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Maps API Script -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD5oCzUWbtEl6B2dAUwWcTnv_F9mcriXKc&callback=initMap" async defer></script>
+
+    <script>
+        // Login functionality
+        document.getElementById("loginForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            if (username === "admin" && password === "password") {
+                document.getElementById("login-page").style.display = "none";
+                document.getElementById("home-page").style.display = "block";
+            } else {
+                alert("Invalid credentials!");
+            }
+        });
+
+        // Initialize Google Maps
+        let map;
+        let selectedLocation = { lat: 0, lng: 0 };
+
+        const OPEN_WEATHER_API_KEY = '9cd62603c361c19bcc6f7efd0758ed06';
+
+        function initMap() {
+            const defaultLocation = { lat: 20.5937, lng: 78.9629 };
+
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 5,
+                center: defaultLocation,
+            });
+
+            map.addListener("click", (event) => {
+                selectedLocation = {
+                    lat: event.latLng.lat(),
+                    lng: event.latLng.lng(),
+                };
+                document.getElementById("coordinates").innerText =
+                    `Lat: ${selectedLocation.lat}, Lng: ${selectedLocation.lng}`;
+
+                getWeatherData(selectedLocation.lat, selectedLocation.lng);
+            });
+        }
+
+        // Fetch weather data
+        function getWeatherData(lat, lng) {
+            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${OPEN_WEATHER_API_KEY}&units=metric`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    displayWeatherData(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching weather data:', error);
+                });
+        }
+
+        // Display weather data with animation
+        function displayWeatherData(data) {
+            const weatherElement = document.getElementById('weather');
+            const { main, weather, wind } = data;
+
+            const weatherHTML = `
+                <h3>Current Weather:</h3>
+                <p><strong>Temperature:</strong> ${main.temp}°C</p>
+                <p><strong>Humidity:</strong> ${main.humidity}%</p>
+                <p><strong>Weather:</strong> ${weather[0].description}</p>
+                <p><strong>Wind Speed:</strong> ${wind.speed} m/s</p>
+            `;
+            weatherElement.innerHTML = weatherHTML;
+
+            // Add show class to trigger animation
+            weatherElement.classList.add('show');
+        }
+
+        // Simulate prediction (replace with actual logic)
+        function predictGroundwaterLevel(lat, lng) {
+            return (Math.random() * 100).toFixed(2); // Random prediction
+        }
+
+        // Event listener for "Predict" button
+        document.getElementById("predictBtn").addEventListener("click", () => {
+            const { lat, lng } = selectedLocation;
+            if (lat === 0 && lng === 0) {
+                alert("Please select a location on the map first.");
+            } else {
+                const predictedLevel = predictGroundwaterLevel(lat, lng);
+                const predictionElement = document.getElementById("prediction");
+
+                predictionElement.innerText = `Predicted Groundwater Level: ${predictedLevel} meters`;
+
+                // Add show class to trigger animation
+                predictionElement.classList.add('show');
+            }
+        });
+    </script>
+</body>
+</html>
